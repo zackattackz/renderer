@@ -5,7 +5,7 @@ import (
 
 	log "github.com/micro/micro/v3/service/logger"
 
-	renderer "renderer/proto"
+	renderer "github.com/zackattackz/renderer/proto"
 )
 
 type Renderer struct{}

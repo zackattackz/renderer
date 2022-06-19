@@ -1,8 +1,8 @@
 package main
 
 import (
-	"renderer/handler"
-	pb "renderer/proto"
+	"github.com/zackattackz/renderer/handler"
+	pb "github.com/zackattackz/renderer/proto"
 
 	"github.com/micro/micro/v3/service"
 	"github.com/micro/micro/v3/service/logger"
