@@ -43,8 +43,6 @@ func NewRendererEndpoints() []*api.Endpoint {
 
 type RendererService interface {
 	Call(ctx context.Context, in *Request, opts ...client.CallOption) (*Response, error)
-	Stream(ctx context.Context, in *StreamingRequest, opts ...client.CallOption) (Renderer_StreamService, error)
-	PingPong(ctx context.Context, opts ...client.CallOption) (Renderer_PingPongService, error)
 }
 
 type rendererService struct {
@@ -69,119 +67,15 @@ func (c *rendererService) Call(ctx context.Context, in *Request, opts ...client.
 	return out, nil
 }
 
-func (c *rendererService) Stream(ctx context.Context, in *StreamingRequest, opts ...client.CallOption) (Renderer_StreamService, error) {
-	req := c.c.NewRequest(c.name, "Renderer.Stream", &StreamingRequest{})
-	stream, err := c.c.Stream(ctx, req, opts...)
-	if err != nil {
-		return nil, err
-	}
-	if err := stream.Send(in); err != nil {
-		return nil, err
-	}
-	return &rendererServiceStream{stream}, nil
-}
-
-type Renderer_StreamService interface {
-	Context() context.Context
-	SendMsg(interface{}) error
-	RecvMsg(interface{}) error
-	Close() error
-	Recv() (*StreamingResponse, error)
-}
-
-type rendererServiceStream struct {
-	stream client.Stream
-}
-
-func (x *rendererServiceStream) Close() error {
-	return x.stream.Close()
-}
-
-func (x *rendererServiceStream) Context() context.Context {
-	return x.stream.Context()
-}
-
-func (x *rendererServiceStream) SendMsg(m interface{}) error {
-	return x.stream.Send(m)
-}
-
-func (x *rendererServiceStream) RecvMsg(m interface{}) error {
-	return x.stream.Recv(m)
-}
-
-func (x *rendererServiceStream) Recv() (*StreamingResponse, error) {
-	m := new(StreamingResponse)
-	err := x.stream.Recv(m)
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *rendererService) PingPong(ctx context.Context, opts ...client.CallOption) (Renderer_PingPongService, error) {
-	req := c.c.NewRequest(c.name, "Renderer.PingPong", &Ping{})
-	stream, err := c.c.Stream(ctx, req, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &rendererServicePingPong{stream}, nil
-}
-
-type Renderer_PingPongService interface {
-	Context() context.Context
-	SendMsg(interface{}) error
-	RecvMsg(interface{}) error
-	Close() error
-	Send(*Ping) error
-	Recv() (*Pong, error)
-}
-
-type rendererServicePingPong struct {
-	stream client.Stream
-}
-
-func (x *rendererServicePingPong) Close() error {
-	return x.stream.Close()
-}
-
-func (x *rendererServicePingPong) Context() context.Context {
-	return x.stream.Context()
-}
-
-func (x *rendererServicePingPong) SendMsg(m interface{}) error {
-	return x.stream.Send(m)
-}
-
-func (x *rendererServicePingPong) RecvMsg(m interface{}) error {
-	return x.stream.Recv(m)
-}
-
-func (x *rendererServicePingPong) Send(m *Ping) error {
-	return x.stream.Send(m)
-}
-
-func (x *rendererServicePingPong) Recv() (*Pong, error) {
-	m := new(Pong)
-	err := x.stream.Recv(m)
-	if err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
 // Server API for Renderer service
 
 type RendererHandler interface {
 	Call(context.Context, *Request, *Response) error
-	Stream(context.Context, *StreamingRequest, Renderer_StreamStream) error
-	PingPong(context.Context, Renderer_PingPongStream) error
 }
 
 func RegisterRendererHandler(s server.Server, hdlr RendererHandler, opts ...server.HandlerOption) error {
 	type renderer interface {
 		Call(ctx context.Context, in *Request, out *Response) error
-		Stream(ctx context.Context, stream server.Stream) error
-		PingPong(ctx context.Context, stream server.Stream) error
 	}
 	type Renderer struct {
 		renderer
@@ -196,89 +90,4 @@ type rendererHandler struct {
 
 func (h *rendererHandler) Call(ctx context.Context, in *Request, out *Response) error {
 	return h.RendererHandler.Call(ctx, in, out)
-}
-
-func (h *rendererHandler) Stream(ctx context.Context, stream server.Stream) error {
-	m := new(StreamingRequest)
-	if err := stream.Recv(m); err != nil {
-		return err
-	}
-	return h.RendererHandler.Stream(ctx, m, &rendererStreamStream{stream})
-}
-
-type Renderer_StreamStream interface {
-	Context() context.Context
-	SendMsg(interface{}) error
-	RecvMsg(interface{}) error
-	Close() error
-	Send(*StreamingResponse) error
-}
-
-type rendererStreamStream struct {
-	stream server.Stream
-}
-
-func (x *rendererStreamStream) Close() error {
-	return x.stream.Close()
-}
-
-func (x *rendererStreamStream) Context() context.Context {
-	return x.stream.Context()
-}
-
-func (x *rendererStreamStream) SendMsg(m interface{}) error {
-	return x.stream.Send(m)
-}
-
-func (x *rendererStreamStream) RecvMsg(m interface{}) error {
-	return x.stream.Recv(m)
-}
-
-func (x *rendererStreamStream) Send(m *StreamingResponse) error {
-	return x.stream.Send(m)
-}
-
-func (h *rendererHandler) PingPong(ctx context.Context, stream server.Stream) error {
-	return h.RendererHandler.PingPong(ctx, &rendererPingPongStream{stream})
-}
-
-type Renderer_PingPongStream interface {
-	Context() context.Context
-	SendMsg(interface{}) error
-	RecvMsg(interface{}) error
-	Close() error
-	Send(*Pong) error
-	Recv() (*Ping, error)
-}
-
-type rendererPingPongStream struct {
-	stream server.Stream
-}
-
-func (x *rendererPingPongStream) Close() error {
-	return x.stream.Close()
-}
-
-func (x *rendererPingPongStream) Context() context.Context {
-	return x.stream.Context()
-}
-
-func (x *rendererPingPongStream) SendMsg(m interface{}) error {
-	return x.stream.Send(m)
-}
-
-func (x *rendererPingPongStream) RecvMsg(m interface{}) error {
-	return x.stream.Recv(m)
-}
-
-func (x *rendererPingPongStream) Send(m *Pong) error {
-	return x.stream.Send(m)
-}
-
-func (x *rendererPingPongStream) Recv() (*Ping, error) {
-	m := new(Ping)
-	if err := x.stream.Recv(m); err != nil {
-		return nil, err
-	}
-	return m, nil
 }

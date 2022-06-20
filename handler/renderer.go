@@ -3,7 +3,9 @@ package handler
 import (
 	"context"
 
+	"github.com/micro/micro/v3/service/broker"
 	log "github.com/micro/micro/v3/service/logger"
+	"google.golang.org/protobuf/proto"
 
 	renderer "github.com/zackattackz/renderer/proto"
 )
@@ -22,32 +24,25 @@ func (e *Renderer) Call(ctx context.Context, req *renderer.Request, rsp *rendere
 	return nil
 }
 
-// Stream is a server side stream handler called via client.Stream or the generated client code
-func (e *Renderer) Stream(ctx context.Context, req *renderer.StreamingRequest, stream renderer.Renderer_StreamStream) error {
-	log.Infof("Received Renderer.Stream request with count: %d", req.Count)
-
-	for i := 0; i < int(req.Count); i++ {
-		log.Infof("Responding: %d", i)
-		if err := stream.Send(&renderer.StreamingResponse{
-			Count: int64(i),
-		}); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// PingPong is a bidirectional stream handler called via client.Stream or the generated client code
-func (e *Renderer) PingPong(ctx context.Context, stream renderer.Renderer_PingPongStream) error {
-	for {
-		req, err := stream.Recv()
+func (e *Renderer) BrokerHandler(ctx context.Context) broker.Handler {
+	return func(m *broker.Message) error {
+		var req renderer.Request
+		var rsp renderer.Response
+		err := proto.Unmarshal(m.Body, &req)
 		if err != nil {
 			return err
 		}
-		log.Infof("Got ping %v", req.Stroke)
-		if err := stream.Send(&renderer.Pong{Stroke: req.Stroke}); err != nil {
+
+		err = e.Call(ctx, &req, &rsp)
+		if err != nil {
 			return err
 		}
+
+		rspProto, err := proto.Marshal(&rsp)
+		if err != nil {
+			return err
+		}
+
+		return broker.Publish("renderer.Response", &broker.Message{Body: rspProto})
 	}
 }
